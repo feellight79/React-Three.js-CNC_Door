@@ -1,11 +1,11 @@
 import React from "react";
-import ThreeJSScene from "./components/Scene";
+import CubeDimensions from "./components/Scene";
 import "./App.css";
 
 const App = () => {
   return (
     <div>
-      <ThreeJSScene/>
+      <CubeDimensions/>
     </div>
   );
 };

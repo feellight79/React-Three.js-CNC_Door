@@ -3,7 +3,6 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber"
 import { OrbitControls } from "@react-three/drei"
 import * as THREE from "three"
 import { CSG } from "three-csg-ts"
-import { Evaluator, SUBTRACTION } from "three-bvh-csg";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter"
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter"
 import { Input } from "./ui/input"
@@ -82,13 +81,29 @@ export default function CubeDimensions() {
   const [dimensions, setDimensions] = useState({
     width: 1000,
     height: 2000,
-    depth: 50,
+    thickness: 50,
+    hingeTop: 150,
+    hingeBackSet: 4,
+    hingeThickness: 7.5,
+    lockPosition: 1200,
+    litePositionTop: 200,
+    litePositionRight: 180,
+    liteWidth: 180,
+    liteHeight: 1500,
   })
 
   const [inputValues, setInputValues] = useState({
     width: "1000",
     height: "2000",
-    depth: "50",
+    thickness: "50",
+    hingeTop: "150",
+    hingeBackSet: "4",
+    hingeThickness: "7.5",
+    lockPosition: "1200",
+    litePositionTop: "200",
+    litePositionRight: "180",
+    liteWidth: "180",
+    liteHeight: "1500",
   })
 
   const [currentView, setCurrentView] = useState("free")
@@ -148,13 +163,21 @@ export default function CubeDimensions() {
       [name]: value,
     }))
   }
-
+ console.log(dimensions)
   const handleSubmit = (e) => {
     e.preventDefault()
     setDimensions({
       width: Number.parseFloat(inputValues.width) || 1,
       height: Number.parseFloat(inputValues.height) || 1,
-      depth: Number.parseFloat(inputValues.depth) || 1,
+      thickness: Number.parseFloat(inputValues.thickness) || 1,
+      hingeTop: Number.parseFloat(inputValues.hingeTop) || 1,
+      hingeBackSet: Number.parseFloat(inputValues.hingeBackSet) || 1,
+      hingeThickness: Number.parseFloat(inputValues.hingeThickness) || 1,
+      lockPosition: Number.parseFloat(inputValues.lockPosition) || 1,
+      litePositionTop: Number.parseFloat(inputValues.litePositionTop) || 1,
+      litePositionRight: Number.parseFloat(inputValues.litePositionRight) || 1,
+      liteWidth: Number.parseFloat(inputValues.liteWidth) || 1,
+      liteHeight: Number.parseFloat(inputValues.liteHeight) || 1,
     })
   }
 
@@ -234,7 +257,7 @@ export default function CubeDimensions() {
     // Create a download link
     const link = document.createElement("a")
     link.href = URL.createObjectURL(blob)
-    link.download = `cube_${dimensions.width}x${dimensions.height}x${dimensions.depth}_${selectedTexture}.obj`
+    link.download = `cube_${dimensions.width}x${dimensions.height}x${dimensions.thickness}_${selectedTexture}.obj`
 
     // Append the link to the document, click it, and remove it
     document.body.appendChild(link)
@@ -270,7 +293,7 @@ export default function CubeDimensions() {
     // Create a download link
     const link = document.createElement("a")
     link.href = URL.createObjectURL(blob)
-    link.download = `cube_${dimensions.width}x${dimensions.height}x${dimensions.depth}_${selectedTexture}.stl`
+    link.download = `cube_${dimensions.width}x${dimensions.height}x${dimensions.thickness}_${selectedTexture}.stl`
 
     // Append the link to the document, click it, and remove it
     document.body.appendChild(link)
@@ -342,7 +365,7 @@ export default function CubeDimensions() {
           // Create a download link
           const link = document.createElement("a")
           link.href = URL.createObjectURL(blob)
-          link.download = `cube_${dimensions.width}x${dimensions.height}x${dimensions.depth}_${toolParams.type}_${strategyParams.operationType}.nc`
+          link.download = `cube_${dimensions.width}x${dimensions.height}x${dimensions.thickness}_${toolParams.type}_${strategyParams.operationType}.nc`
 
           // Append the link to the document, click it, and remove it
           document.body.appendChild(link)
@@ -368,7 +391,7 @@ export default function CubeDimensions() {
     // This is a simplified G-code generation that takes manufacturing parameters into account
     // In a real application, this would be handled by Open CASCADE and a proper CAM engine
 
-    const { width, height, depth } = dimensions
+    const { width, height, thickness } = dimensions
     const { tool, operation, machine, strategy } = params
 
     // Convert string parameters to numbers
@@ -382,7 +405,7 @@ export default function CubeDimensions() {
     const retractHeight = Number.parseFloat(strategy.retractHeight)
     const stockAllowance = Number.parseFloat(strategy.stockAllowance)
 
-    let gcode = `;Generated G-code for cube ${width}x${height}x${depth}mm\n`
+    let gcode = `;Generated G-code for cube ${width}x${height}x${thickness}mm\n`
     gcode += `;Tool: ${tool.type}, Diameter: ${tool.diameter}mm, Material: ${tool.material}\n`
     gcode += `;Operation: ${strategy.operationType}, Pattern: ${strategy.toolpathPattern}\n`
     gcode += `;Machine: ${machine.type}\n\n`
@@ -416,7 +439,7 @@ export default function CubeDimensions() {
       // Roughing operation with selected pattern
       gcode += generateRoughingToolpath(
         width,
-        depth,
+        thickness,
         height,
         toolDiameter,
         stepOver,
@@ -430,7 +453,7 @@ export default function CubeDimensions() {
       // Finishing operation
       gcode += generateFinishingToolpath(
         width,
-        depth,
+        thickness,
         height,
         toolDiameter,
         stepOver,
@@ -443,7 +466,7 @@ export default function CubeDimensions() {
       // Contour operation
       gcode += generateContourToolpath(
         width,
-        depth,
+        thickness,
         height,
         toolDiameter,
         feedRate,
@@ -471,7 +494,7 @@ export default function CubeDimensions() {
   // Function to generate a roughing toolpath
   const generateRoughingToolpath = (
     width,
-    depth,
+    thickness,
     height,
     toolDiameter,
     stepOver,
@@ -491,7 +514,7 @@ export default function CubeDimensions() {
 
     // Calculate number of passes in X and Y
     const numPassesX = Math.ceil(width / stepOverDistance)
-    const numPassesY = Math.ceil(depth / stepOverDistance)
+    const numPassesY = Math.ceil(thickness / stepOverDistance)
 
     // Generate toolpath for each layer
     for (let layer = 0; layer < numLayers; layer++) {
@@ -508,8 +531,8 @@ export default function CubeDimensions() {
           // Move to start position
           gcode += `G0 X0 Y${yPos.toFixed(3)} ; Rapid to start position\n`
 
-          // Plunge to cutting depth
-          gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to cutting depth\n`
+          // Plunge to cutting thickness
+          gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to cutting thickness\n`
 
           // Cut in X direction (left to right or right to left based on row)
           if (y % 2 === 0) {
@@ -521,15 +544,15 @@ export default function CubeDimensions() {
       } else if (pattern === "spiral") {
         // Spiral pattern (simplified)
         const centerX = width / 2
-        const centerY = depth / 2
-        const maxRadius = Math.min(width, depth) / 2
+        const centerY = thickness / 2
+        const maxRadius = Math.min(width, thickness) / 2
         const numSpirals = Math.ceil(maxRadius / stepOverDistance)
 
         // Move to center
         gcode += `G0 X${centerX.toFixed(3)} Y${centerY.toFixed(3)} ; Rapid to center\n`
 
-        // Plunge to cutting depth
-        gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to cutting depth\n`
+        // Plunge to cutting thickness
+        gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to cutting thickness\n`
 
         // Generate spiral
         for (let i = 0; i < numSpirals; i++) {
@@ -544,8 +567,8 @@ export default function CubeDimensions() {
           // Move to start position
           gcode += `G0 X0 Y${yPos.toFixed(3)} ; Rapid to start position\n`
 
-          // Plunge to cutting depth
-          gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to cutting depth\n`
+          // Plunge to cutting thickness
+          gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to cutting thickness\n`
 
           // Cut in X direction
           gcode += `G1 X${width.toFixed(3)} Y${yPos.toFixed(3)} F${feedRate} ; Cut along X\n`
@@ -562,7 +585,7 @@ export default function CubeDimensions() {
   // Function to generate a finishing toolpath
   const generateFinishingToolpath = (
     width,
-    depth,
+    thickness,
     height,
     toolDiameter,
     stepOver,
@@ -575,7 +598,7 @@ export default function CubeDimensions() {
 
     // Adjust dimensions for stock allowance
     const adjustedWidth = width - 2 * stockAllowance
-    const adjustedDepth = depth - 2 * stockAllowance
+    const adjustedThickness = thickness - 2 * stockAllowance
     const adjustedHeight = height - stockAllowance
 
     // Calculate step over distance
@@ -583,7 +606,7 @@ export default function CubeDimensions() {
 
     // Calculate number of passes for walls
     const numPassesX = Math.ceil(adjustedWidth / stepOverDistance)
-    const numPassesY = Math.ceil(adjustedDepth / stepOverDistance)
+    const numPassesY = Math.ceil(adjustedThickness / stepOverDistance)
 
     // Finish the top surface
     gcode += "\n; Finishing top surface\n"
@@ -606,14 +629,14 @@ export default function CubeDimensions() {
 
     // Front wall
     gcode += `G0 X${stockAllowance.toFixed(3)} Y${stockAllowance.toFixed(3)} Z${retractHeight} ; Rapid to front wall start\n`
-    gcode += `G1 Z${(-adjustedHeight).toFixed(3)} F${plungeRate} ; Plunge to cutting depth\n`
+    gcode += `G1 Z${(-adjustedHeight).toFixed(3)} F${plungeRate} ; Plunge to cutting thickness\n`
     gcode += `G1 X${(adjustedWidth + stockAllowance).toFixed(3)} Y${stockAllowance.toFixed(3)} F${feedRate} ; Cut front wall\n`
 
     // Right wall
-    gcode += `G1 X${(adjustedWidth + stockAllowance).toFixed(3)} Y${(adjustedDepth + stockAllowance).toFixed(3)} F${feedRate} ; Cut right wall\n`
+    gcode += `G1 X${(adjustedWidth + stockAllowance).toFixed(3)} Y${(adjustedThickness + stockAllowance).toFixed(3)} F${feedRate} ; Cut right wall\n`
 
     // Back wall
-    gcode += `G1 X${stockAllowance.toFixed(3)} Y${(adjustedDepth + stockAllowance).toFixed(3)} F${feedRate} ; Cut back wall\n`
+    gcode += `G1 X${stockAllowance.toFixed(3)} Y${(adjustedThickness + stockAllowance).toFixed(3)} F${feedRate} ; Cut back wall\n`
 
     // Left wall
     gcode += `G1 X${stockAllowance.toFixed(3)} Y${stockAllowance.toFixed(3)} F${feedRate} ; Cut left wall\n`
@@ -624,7 +647,7 @@ export default function CubeDimensions() {
   // Function to generate a contour toolpath
   const generateContourToolpath = (
     width,
-    depth,
+    thickness,
     height,
     toolDiameter,
     feedRate,
@@ -636,7 +659,7 @@ export default function CubeDimensions() {
 
     // Adjust dimensions for stock allowance
     const adjustedWidth = width - 2 * stockAllowance
-    const adjustedDepth = depth - 2 * stockAllowance
+    const adjustedThickness = thickness - 2 * stockAllowance
     const adjustedHeight = height - stockAllowance
 
     // Calculate number of layers (simplified to 3 for demonstration)
@@ -649,12 +672,12 @@ export default function CubeDimensions() {
 
       gcode += `\n; Contour at Z=${z.toFixed(3)}\n`
       gcode += `G0 X${stockAllowance.toFixed(3)} Y${stockAllowance.toFixed(3)} Z${retractHeight} ; Rapid to start position\n`
-      gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to contour depth\n`
+      gcode += `G1 Z${z.toFixed(3)} F${plungeRate} ; Plunge to contour thickness\n`
 
       // Cut contour (rectangle)
       gcode += `G1 X${(adjustedWidth + stockAllowance).toFixed(3)} Y${stockAllowance.toFixed(3)} F${feedRate} ; Contour cut 1\n`
-      gcode += `G1 X${(adjustedWidth + stockAllowance).toFixed(3)} Y${(adjustedDepth + stockAllowance).toFixed(3)} F${feedRate} ; Contour cut 2\n`
-      gcode += `G1 X${stockAllowance.toFixed(3)} Y${(adjustedDepth + stockAllowance).toFixed(3)} F${feedRate} ; Contour cut 3\n`
+      gcode += `G1 X${(adjustedWidth + stockAllowance).toFixed(3)} Y${(adjustedThickness + stockAllowance).toFixed(3)} F${feedRate} ; Contour cut 2\n`
+      gcode += `G1 X${stockAllowance.toFixed(3)} Y${(adjustedThickness + stockAllowance).toFixed(3)} F${feedRate} ; Contour cut 3\n`
       gcode += `G1 X${stockAllowance.toFixed(3)} Y${stockAllowance.toFixed(3)} F${feedRate} ; Contour cut 4\n`
     }
 
@@ -678,74 +701,190 @@ export default function CubeDimensions() {
             {/* Dimensions Tab */}
             <TabsContent value="dimensions" className={`space-y-4 ${activeTab==="dimensions"?"block":"hidden"}`}>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <h2 className="text-xl font-bold">Cube Dimensions</h2>
+                <h2 className="text-xl font-bold">Door Dimensions</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="width">Width (mm)</Label>
+                    <Input
+                      id="width"
+                      name="width"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.width}
+                      onChange={handleChange}
+                      placeholder="Width"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="width">Width (mm)</Label>
-                  <Input
-                    id="width"
-                    name="width"
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={inputValues.width}
-                    onChange={handleChange}
-                    placeholder="Width"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Height (mm)</Label>
+                    <Input
+                      id="height"
+                      name="height"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.height}
+                      onChange={handleChange}
+                      placeholder="Height"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="thickness">Thickness (mm)</Label>
+                    <Input
+                      id="thickness"
+                      name="thickness"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.thickness}
+                      onChange={handleChange}
+                      placeholder="Thickness"
+                    />
+                  </div>
+                  {/* Texture Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="texture">Material</Label>
+                    <select
+                      id="texture"
+                      name="texture"
+                      value={selectedTexture}
+                      onChange={handleTextureChange}
+                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {TEXTURE_OPTIONS.map((texture) => (
+                        <option key={texture.id} value={texture.id}>
+                          {texture.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+                <h2 className="text-lg font-bold">Lite Dimensions</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="liteWidth">LiteWidth (mm)</Label>
+                    <Input
+                      id="liteWidth"
+                      name="liteWidth"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.liteWidth}
+                      onChange={handleChange}
+                      placeholder="liteWidth"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="height">Height (mm)</Label>
-                  <Input
-                    id="height"
-                    name="height"
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={inputValues.height}
-                    onChange={handleChange}
-                    placeholder="Height"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="liteHeight">LiteHeight (mm)</Label>
+                    <Input
+                      id="liteHeight"
+                      name="liteHeight"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.liteHeight}
+                      onChange={handleChange}
+                      placeholder="liteHeight"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="litePositionTop">LitePositionTop (mm)</Label>
+                    <Input
+                      id="litePositionTop"
+                      name="litePositionTop"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.litePositionTop}
+                      onChange={handleChange}
+                      placeholder="litePositionTop"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="litePositionRight">LitePositionRight (mm)</Label>
+                    <Input
+                      id="litePositionRight"
+                      name="litePositionRight"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.litePositionRight}
+                      onChange={handleChange}
+                      placeholder="litePositionRight"
+                    />
+                  </div>
                 </div>
+                <h2 className="text-lg font-bold">Hinge Dimensions</h2>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="hingeTop">HingeTop (mm)</Label>
+                    <Input
+                      id="hingeTop"
+                      name="hingeTop"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.hingeTop}
+                      onChange={handleChange}
+                      placeholder="hingeTop"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="depth">Depth (mm)</Label>
-                  <Input
-                    id="depth"
-                    name="depth"
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={inputValues.depth}
-                    onChange={handleChange}
-                    placeholder="Depth"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="hingeBackSet">HingeBackSet (mm)</Label>
+                    <Input
+                      id="hingeBackSet"
+                      name="hingeBackSet"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.hingeBackSet}
+                      onChange={handleChange}
+                      placeholder="hingeBackSet"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="hingeThickness">HingeThickness (mm)</Label>
+                    <Input
+                      id="hingeThickness"
+                      name="hingeThickness"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.hingeThickness}
+                      onChange={handleChange}
+                      placeholder="hingeThickness"
+                    />
+                  </div>
                 </div>
-
-                {/* Texture Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="texture">Material</Label>
-                  <select
-                    id="texture"
-                    name="texture"
-                    value={selectedTexture}
-                    onChange={handleTextureChange}
-                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {TEXTURE_OPTIONS.map((texture) => (
-                      <option key={texture.id} value={texture.id}>
-                        {texture.name}
-                      </option>
-                    ))}
-                  </select>
+                <h2 className="text-lg font-bold">Lock Dimensions</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="lockPosition">LockPosition (mm)</Label>
+                    <Input
+                      id="lockPosition"
+                      name="lockPosition"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={inputValues.lockPosition}
+                      onChange={handleChange}
+                      placeholder="lockPosition"
+                    />
+                  </div>
                 </div>
-
                 <Button type="submit" className="w-full">
                   Update Cube
                 </Button>
 
                 <div className="text-sm text-gray-500">
-                  Current dimensions: {dimensions.width} × {dimensions.height} × {dimensions.depth} mm
+                  Current dimensions: {dimensions.width} × {dimensions.height} × {dimensions.thickness} mm
                 </div>
               </form>
             </TabsContent>
@@ -1078,7 +1217,7 @@ export default function CubeDimensions() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="tableY">Table Depth (mm)</Label>
+                  <Label htmlFor="tableY">Table Thickness (mm)</Label>
                   <Input
                     id="tableY"
                     name="tableY"
@@ -1087,7 +1226,7 @@ export default function CubeDimensions() {
                     min="10"
                     value={machineParams.tableY}
                     onChange={handleMachineParamChange}
-                    placeholder="Table Depth"
+                    placeholder="Table Thickness"
                   />
                 </div>
               </div>
@@ -1254,11 +1393,11 @@ export default function CubeDimensions() {
           <div className="flex-1 bg-gray-100 dark:bg-gray-800 min-h-[300px]">
             <Canvas camera={{ position: [3000, 1000, 3000], fov: 50, near: 0.1, far: 20000  }}>
               <ambientLight intensity={0.8} />
-              <directionalLight position={[-8000, 3000, 8000]} intensity={1.5} />
+              <directionalLight position={[0, 2000, 8000]} intensity={1.5} />
               <Door
                 dimensions={dimensions}
                 texturePath={selectedTexturePath}
-                // textureType={selectedTexture}
+                textureType={selectedTexture}
                 cubeRef={cubeRef}
               />
               <CameraController view={currentView} positions={viewPositions} controlsRef={controlsRef} />
@@ -1408,7 +1547,7 @@ function TexturedCube({ dimensions, texturePath, textureType, cubeRef }) {
 
   return (
     <mesh ref={meshRef}>
-      <boxGeometry args={[dimensions.width, dimensions.height, dimensions.depth]} />
+      <boxGeometry args={[dimensions.width, dimensions.height, dimensions.thickness]} />
       {materials.length === 6 ? (
         materials.map((material, index) => <primitive key={index} object={material} attach={`material-${index}`} />)
       ) : (
@@ -1422,15 +1561,54 @@ function Door({ dimensions, texturePath, cubeRef }) {
   const meshRef = useRef();
   useEffect(() => { if (meshRef.current) cubeRef.current = meshRef.current; }, [meshRef, cubeRef]);
   const texture = new THREE.TextureLoader().load(texturePath);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(0.002, 0.002)
 
   const shape = createDoorShape(dimensions);
-  const extrudeSettings = { depth: dimensions.depth, bevelEnabled: false };
+  const extrudeSettings = { depth: dimensions.thickness, bevelEnabled: false };
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  const doorMesh = new THREE.Mesh(geometry);
+  doorMesh.material = new THREE.MeshStandardMaterial({ map: texture });
+
+  // Create the subtractive mesh (for example, a cylinder for the hole)
+  const lockbox = new THREE.BoxGeometry(120, 150, 30)
+  lockbox.translate(dimensions.width/2-50, dimensions.height/2-dimensions.lockPosition, 25)
+  // const holeGeometry = new THREE.CylinderGeometry(100, 100, dimensions.thickness*2, 32);
+  // holeGeometry.rotateX(Math.PI / 2); // Rotate to position it correctly for subtraction
+  // holeGeometry.translate(0, 100, 60); // Adjust position to the desired hole location
+  const lockMesh = new THREE.Mesh(lockbox);
+console.log(dimensions);
+  const hingeGeometry1 = new THREE.BoxGeometry(15, 150, (dimensions.thickness-dimensions.hingeBackSet)*2)
+  hingeGeometry1.translate(-dimensions.width/2, dimensions.height/2-dimensions.hingeTop-75, 0)
+  const hingeMesh1 = new THREE.Mesh(hingeGeometry1);
+
+  const hingeGeometry2 = new THREE.BoxGeometry(15, 150, (dimensions.thickness-dimensions.hingeBackSet)*2)
+  hingeGeometry2.translate(-dimensions.width/2, (325-dimensions.hingeTop)/2, 0)
+  const hingeMesh2 = new THREE.Mesh(hingeGeometry2);
+
+  const hingeGeometry3 = new THREE.BoxGeometry(15, 150, (dimensions.thickness-dimensions.hingeBackSet)*2)
+  hingeGeometry3.translate(-dimensions.width/2, -dimensions.height/2+400, 0)
+  const hingeMesh3 = new THREE.Mesh(hingeGeometry3);
+
+  // Perform the subtraction using CSG
+  const doorCSG = CSG.fromMesh(doorMesh);  // Convert door mesh to CSG
+  const holeCSG = CSG.fromMesh(lockMesh);  // Convert hole mesh to CSG
+  const hingeCSG1 = CSG.fromMesh(hingeMesh1);  // Convert hinge mesh to CSG
+  const hingeCSG2 = CSG.fromMesh(hingeMesh2);  // Convert hinge mesh to CSG
+  const hingeCSG3 = CSG.fromMesh(hingeMesh3);  // Convert hinge mesh to CSG
+  const resultCSG = doorCSG.subtract(holeCSG).subtract(hingeCSG1).subtract(hingeCSG2).subtract(hingeCSG3);  // Perform the subtraction
+
+  // Convert the result back to a Three.js mesh
+  const resultMesh = CSG.toMesh(resultCSG, doorMesh.matrix, doorMesh.material)
+
+  // // Convert the resulting CSG back to mesh geometry
+  // const resultGeometry = resultCSG.toGeometry();
+  // const resultMesh = new THREE.Mesh(resultGeometry, doorMesh.material); // Use original material
+
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
+    <mesh ref={meshRef} geometry={resultMesh.geometry} material={doorMesh.material}>
       {/* <shapeGeometry args={[createDoorShape(dimensions)]} /> */}
-      <meshStandardMaterial map={texture} />
     </mesh>
   );
 }
@@ -1453,22 +1631,22 @@ function createDoorShape(dimensions) {
   // shape.holes.push(ecllipsehole);
 
   const lockholepath1 = new THREE.Path();
-  lockholepath1.absarc(dimensions.width/2-70, -115, 10, 0, Math.PI * 2, false);
+  lockholepath1.absarc(dimensions.width/2-70, dimensions.height/2-dimensions.lockPosition+35, 10, 0, Math.PI * 2, false);
   shape.holes.push(lockholepath1);
 
   const lockholepath2 = new THREE.Path();
-  lockholepath2.absarc(dimensions.width/2-70, -150, 20, 0, Math.PI * 2, false);
+  lockholepath2.absarc(dimensions.width/2-70, dimensions.height/2-dimensions.lockPosition, 20, 0, Math.PI * 2, false);
   shape.holes.push(lockholepath2);
 
   const lockholepath3 = new THREE.Path();
-  lockholepath3.absarc(dimensions.width/2-70, -185, 10, 0, Math.PI * 2, false);
+  lockholepath3.absarc(dimensions.width/2-70, dimensions.height/2-dimensions.lockPosition-35, 10, 0, Math.PI * 2, false);
   shape.holes.push(lockholepath3);
 
   const rectHole = new THREE.Path();
-  const width = 220;  // Width of the hole
-  const height = dimensions.height*3/5; // Height of the hole
-  const x = dimensions.width/2-150;  // X position
-  const y = dimensions.height/2-200;  // Y position
+  const width = dimensions.liteWidth;  // Width of the hole
+  const height = dimensions.liteHeight; // Height of the hole
+  const x = dimensions.width/2-dimensions.litePositionRight;  // X position
+  const y = dimensions.height/2-dimensions.litePositionTop;  // Y position
   rectHole.moveTo(x, y);
   rectHole.lineTo(x - width, y);         // Bottom edge
   rectHole.lineTo(x - width, y - height); // Right edge
