@@ -1516,7 +1516,7 @@ function TexturedCube({ dimensions, texturePath, textureType, cubeRef }) {
         texture.repeat.set(2, 2)
       } else {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-        texture.repeat.set(1, 1)
+        texture.repeat.set(0.01, 0.01)
       }
 
       return texture
@@ -1562,7 +1562,7 @@ function Door({ dimensions, texturePath, cubeRef }) {
   useEffect(() => { if (meshRef.current) cubeRef.current = meshRef.current; }, [meshRef, cubeRef]);
   const texture = new THREE.TextureLoader().load(texturePath);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(0.002, 0.002)
+  texture.repeat.set(0.002, 0.00001)
 
   const shape = createDoorShape(dimensions);
   const extrudeSettings = { depth: dimensions.thickness, bevelEnabled: false };
